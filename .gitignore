@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# Local tooling
+.kilo/
+*/.venv/
+
+# JOB / IMDB dataset (~6 GB CSVs + tarballs) — download via join-order-benchmark instructions
+job_benchmark_data/
+backups/
+*.tar.gz
+*.tgz
