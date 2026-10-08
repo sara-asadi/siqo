@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from utils import *
 import os
@@ -72,7 +73,7 @@ class LeroHelper():
         create_training_file(training_data_file, self.output_query_latency_file, self.output_query_latency_file + "_exploratory")
         print("retrain Lero model:", model_name, "with file", training_data_file)
         
-        cmd_str = "cd " + self.lero_server_path + " && python3.8 train.py" \
+        cmd_str = "cd " + self.lero_server_path + " && " + sys.executable + " train.py" \
                                                 + " --training_data " + os.path.abspath(training_data_file) \
                                                 + " --model_name " + model_name \
                                                 + " --training_type 1"
@@ -100,16 +101,13 @@ class LeroHelper():
             do_run_query(q, fp, run_args, output_file, True, None, None)
 
     def get_run_args(self):
-        run_args = []
-        run_args.append("SET enable_lero TO True")
-        return run_args
+        return get_lero_run_args()
 
     def get_card_test_args(self, card_file_name):
-        run_args = []
-        run_args.append("SET lero_joinest_fname TO '" + card_file_name + "'")
-        return run_args
+        return get_card_run_args(card_file_name)
 
     def run_pairwise(self, q, fp, run_args, output_query_latency_file, exploratory_query_latency_file, pool):
+        ensure_card_dir()
         explain_query(q, run_args)
         policy_entities = []
         with open(self.lero_card_file_path, 'r') as f:
@@ -125,11 +123,9 @@ class LeroHelper():
         for entity in policy_entities:
             if isinstance(entity, CardinalityGuidedEntity):
                 card_str = "\n".join(entity.card_str.strip().split(" "))
-                # ensure that the cardinality file will not be changed during planning
-                card_file_name = "lero_" + fp + "_" + str(i) + ".txt"
-                card_file_path = os.path.join(PG_DB_PATH, card_file_name)
-                with open(card_file_path, "w") as card_file:
-                    card_file.write(card_str)
+                # Basename on host under PG_DB_PATH; PG opens via CARD_PG_RELDIR/
+                card_file_name = "lero_" + fp.replace("/", "_") + "_" + str(i) + ".txt"
+                write_card_file(card_file_name, card_str)
 
                 output_file = output_query_latency_file if i == 0 else exploratory_query_latency_file
                 pool.apply_async(do_run_query, args=(q, fp, self.get_card_test_args(card_file_name), output_file, True, None, None))

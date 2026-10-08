@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  postgres-lero:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: postgres-lero
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydatabase
+
+    ports:
+      - "5433:5432"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - pgdata_lero:/var/lib/postgresql/data
+
+      # keep config override simple and safe
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ../job_benchmark_data:/job_data:ro
+      # Host scripts write card files here; PG fopen is relative to data dir
+      - ./lero_cards:/var/lib/postgresql/data/lero_cards
+
+    command:
+      [
+        "postgres",
+        "-D",
+        "/var/lib/postgresql/data",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "hba_file=/etc/postgresql/pg_hba.conf"
+      ]
+
+    restart: unless-stopped
+
+volumes:
+  pgdata_lero:

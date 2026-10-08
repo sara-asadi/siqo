@@ -10,6 +10,45 @@ def encode_str(s):
     md5 = hashlib.md5()
     md5.update(s.encode('utf-8'))
     return md5.hexdigest()
+
+def ensure_card_dir():
+    os.makedirs(PG_DB_PATH, exist_ok=True)
+
+def get_lero_run_args():
+    """GUCs for a Lero-enabled session (Postgres talks to host ranker)."""
+    args = [
+        "SET enable_lero TO True",
+        "SET lero_server_host TO '" + LERO_SERVER_HOST_FROM_PG + "'",
+        "SET lero_server_port TO " + str(LERO_SERVER_PORT),
+    ]
+    geqo = os.environ.get("PG_GEQO")
+    if geqo:
+        args.append("SET geqo TO " + geqo)
+    return args
+
+def get_card_run_args(card_file_name):
+    """card_file_name is the basename written under PG_DB_PATH / CARD_PG_RELDIR."""
+    rel = CARD_PG_RELDIR + "/" + card_file_name
+    return ["SET lero_joinest_fname TO '" + rel + "'"]
+
+def write_card_file(card_file_name, card_str):
+    ensure_card_dir()
+    card_file_path = os.path.join(PG_DB_PATH, card_file_name)
+    with open(card_file_path, "w") as card_file:
+        card_file.write(card_str)
+    return card_file_path
+
+def load_queries(query_path, limit=None):
+    queries = []
+    with open(query_path, "r") as f:
+        for line in f.readlines():
+            arr = line.strip().split(SEP)
+            if len(arr) < 2:
+                continue
+            queries.append((arr[0], arr[1]))
+            if limit is not None and len(queries) >= limit:
+                break
+    return queries
         
 def run_query(q, run_args):
     start = time()

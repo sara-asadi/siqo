@@ -8,3 +8,13 @@ lero/dump_card_with_score.txt
 __pycache__
 .ipynb*
 lero/test_script/*log*
+# --- local setup ---
+# postgresql.conf is the benchmark server config (geqo=off, no parallel) mounted by docker-compose
+!/postgresql.conf
+.venv/
+.kilo/
+.DS_Store
+
+# Lero runtime artefacts (card files, ranker scratch)
+lero_cards/*
+!lero_cards/.gitkeep
