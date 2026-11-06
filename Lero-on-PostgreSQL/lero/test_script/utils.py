@@ -188,7 +188,7 @@ def do_run_query(sql, query_name, run_args, latency_file, write_latency_file = T
             # 3. run current query 
             run_start = time()
             try:
-                _, latency_json = run_query("EXPLAIN (ANALYZE, TIMING, VERBOSE, COSTS, SUMMARY, FORMAT JSON) " + sql, run_args)
+                _, latency_json = run_query("EXPLAIN (ANALYZE, BUFFERS, TIMING, VERBOSE, COSTS, SUMMARY, FORMAT JSON) " + sql, run_args)
                 latency_json = latency_json[0][0]
                 if len(latency_json) == 2:
                     # remove bao's prediction

@@ -7,6 +7,8 @@ import socket
 from config import *
 from multiprocessing import Pool
 
+USE_PAGES = os.environ.get("USE_PAGES") == "1"
+
 class PolicyEntity:
     def __init__(self, score) -> None:
         self.score = score
@@ -76,7 +78,8 @@ class LeroHelper():
         cmd_str = "cd " + self.lero_server_path + " && " + sys.executable + " train.py" \
                                                 + " --training_data " + os.path.abspath(training_data_file) \
                                                 + " --model_name " + model_name \
-                                                + " --training_type 1"
+                                                + " --training_type 1" \
+                                                + (" --use_pages" if USE_PAGES else "")
         print("run cmd:", cmd_str)
         os.system(cmd_str)
 

@@ -14,7 +14,8 @@ CONNECTION_STR = (
     + " host=" + HOST
     + " port=" + str(PORT)
 )
-TIMEOUT = 30000000
+# statement_timeout (ms); override with LERO_TIMEOUT_MS for training-data collection
+TIMEOUT = int(os.environ.get("LERO_TIMEOUT_MS", 30000000))
 
 # Absolute path on the host to the card-file bind mount.
 # Postgres opens these via relative paths under the data directory

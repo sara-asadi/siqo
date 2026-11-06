@@ -15,6 +15,49 @@ OP_TYPES = [UNKNOWN_OP_TYPE, "Hash", "Materialize", "Sort", "Aggregate", "Increm
     + SCAN_TYPES + JOIN_TYPES + OTHER_TYPES
 
 
+# Approximate B-tree descent cost (pages) charged per index probe.
+INDEX_DESCENT_PAGES = 2
+
+
+def load_relpages():
+    """Heap page count per table from pg_class (plan-time info, no execution needed)."""
+    import psycopg2
+    from test_script.config import CONNECTION_STR
+    conn = psycopg2.connect(CONNECTION_STR)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT relname, relpages FROM pg_class "
+                    "WHERE relkind = 'r' AND relnamespace = 'public'::regnamespace")
+        return {name: int(pages) for name, pages in cur.fetchall()}
+    finally:
+        conn.close()
+
+
+def estimate_pages(n, relpages):
+    """Estimated pages touched by the subtree rooted at n (counts re-reads,
+    like Shared Hit + Read Blocks in EXPLAIN BUFFERS)."""
+    node_type = n["Node Type"]
+    children = n.get("Plans", [])
+    child_pages = [estimate_pages(c, relpages) for c in children]
+    rows = max(float(n["Plan Rows"]), 1.0)
+
+    if node_type == "Seq Scan":
+        return float(relpages.get(n["Relation Name"], 0))
+    if node_type in ("Index Scan", "Index Only Scan"):
+        return min(float(relpages.get(n["Relation Name"], 0)), rows) + INDEX_DESCENT_PAGES
+    if node_type == "Bitmap Heap Scan":
+        return min(float(relpages.get(n["Relation Name"], 0)), rows) + sum(child_pages)
+    if node_type == "Bitmap Index Scan":
+        return float(INDEX_DESCENT_PAGES)
+    if node_type == "Nested Loop" and len(children) == 2:
+        # the inner side is re-executed once per outer row, unless materialized
+        if children[1]["Node Type"] == "Materialize":
+            return child_pages[0] + child_pages[1]
+        outer_rows = max(float(children[0]["Plan Rows"]), 1.0)
+        return child_pages[0] + outer_rows * child_pages[1]
+    return sum(child_pages)
+
+
 def json_str_to_json_obj(json_data):
     json_obj = json.loads(json_data)
     if type(json_obj) == list:
@@ -26,9 +69,11 @@ def json_str_to_json_obj(json_data):
 
 class FeatureGenerator():
 
-    def __init__(self) -> None:
+    def __init__(self, use_pages=False) -> None:
         self.normalizer = None
         self.feature_parser = None
+        self.use_pages = use_pages
+        self.relpages = None
 
     def fit(self, trees):
         exec_times = []
@@ -37,8 +82,14 @@ class FeatureGenerator():
         rows = []
         input_relations = set()
         rel_type = set()
+        pages = []
+        use_pages = getattr(self, "use_pages", False)
+        if use_pages and self.relpages is None:
+            self.relpages = load_relpages()
 
         def recurse(n):
+            if use_pages:
+                pages.append(estimate_pages(n, self.relpages))
             startup_costs.append(n["Startup Cost"])
             total_costs.append(n["Total Cost"])
             rows.append(n["Plan Rows"])
@@ -74,23 +125,25 @@ class FeatureGenerator():
 
         print("RelType : ", rel_type)
 
+        mins = {"Startup Cost": startup_costs_min,
+                "Total Cost": total_costs_min, "Plan Rows": rows_min}
+        maxs = {"Startup Cost": startup_costs_max,
+                "Total Cost": total_costs_max, "Plan Rows": rows_max}
+        if use_pages:
+            pages = np.log(np.array(pages) + 1)
+            mins["Est Pages"] = np.min(pages)
+            maxs["Est Pages"] = np.max(pages)
+
         if len(exec_times) > 0:
             exec_times = np.array(exec_times)
             exec_times = np.log(exec_times + 1)
             exec_times_min = np.min(exec_times)
             exec_times_max = np.max(exec_times)
-            self.normalizer = Normalizer(
-                {"Execution Time": exec_times_min, "Startup Cost": startup_costs_min,
-                 "Total Cost": total_costs_min, "Plan Rows": rows_min},
-                {"Execution Time": exec_times_max, "Startup Cost": startup_costs_max,
-                 "Total Cost": total_costs_max, "Plan Rows": rows_max})
-        else:
-            self.normalizer = Normalizer(
-                {"Startup Cost": startup_costs_min,
-                 "Total Cost": total_costs_min, "Plan Rows": rows_min},
-                {"Startup Cost": startup_costs_max,
-                 "Total Cost": total_costs_max, "Plan Rows": rows_max})
-        self.feature_parser = AnalyzeJsonParser(self.normalizer, list(input_relations))
+            mins["Execution Time"] = exec_times_min
+            maxs["Execution Time"] = exec_times_max
+        self.normalizer = Normalizer(mins, maxs)
+        self.feature_parser = AnalyzeJsonParser(self.normalizer, list(input_relations),
+                                                self.relpages if use_pages else None)
 
     def transform(self, trees):
         local_features = []
@@ -118,7 +171,8 @@ class SampleEntity():
                  rows: float, width: int,
                  left, right,
                  startup_time: float, total_time: float,
-                 input_tables: list, encoded_input_tables: list) -> None:
+                 input_tables: list, encoded_input_tables: list,
+                 pages: float = None) -> None:
         self.node_type = node_type
         self.startup_cost = startup_cost
         self.total_cost = total_cost
@@ -130,6 +184,8 @@ class SampleEntity():
         self.total_time = total_time
         self.input_tables = input_tables
         self.encoded_input_tables = encoded_input_tables
+        # normalized estimated pages read; None when the model does not use it
+        self.pages = pages
 
     def __str__(self):
         return "{%s, %s, %s, %s, %s, [%s], [%s], %s, %s, [%s], [%s]}" % (self.node_type,
@@ -140,6 +196,9 @@ class SampleEntity():
 
     def get_feature(self):
         # return np.hstack((self.node_type, np.array([self.width, self.rows])))
+        if self.pages is not None:
+            return np.hstack((self.node_type, np.array(self.encoded_input_tables),
+                              np.array([self.width, self.rows, self.pages])))
         return np.hstack((self.node_type, np.array(self.encoded_input_tables), np.array([self.width, self.rows])))
 
     def get_left(self):
@@ -189,14 +248,18 @@ class FeatureParser(metaclass=ABCMeta):
 # the json file is created by "EXPLAIN (ANALYZE, VERBOSE, COSTS, BUFFERS, TIMING, SUMMARY, FORMAT JSON) ..."
 class AnalyzeJsonParser(FeatureParser):
 
-    def __init__(self, normalizer: Normalizer, input_relations: list) -> None:
+    def __init__(self, normalizer: Normalizer, input_relations: list, relpages: dict = None) -> None:
         self.normalizer = normalizer
         self.input_relations = input_relations
+        self.relpages = relpages
 
     def extract_feature(self, json_rel) -> SampleEntity:
         left = None
         right = None
         input_relations = []
+        # older pickled parsers predate the pages feature
+        relpages = getattr(self, "relpages", None)
+        empty_pages = 0.0 if relpages is not None else None
 
         if 'Plans' in json_rel:
             children = json_rel['Plans']
@@ -209,7 +272,8 @@ class AnalyzeJsonParser(FeatureParser):
                 input_relations += right.input_tables
             else:
                 right = SampleEntity(op_to_one_hot(UNKNOWN_OP_TYPE), 0, 0, 0, 0,
-                                     None, None, 0, 0, [], self.encode_relation_names([]))
+                                     None, None, 0, 0, [], self.encode_relation_names([]),
+                                     empty_pages)
 
         node_type = op_to_one_hot(json_rel['Node Type'])
         # startup_cost = self.normalizer.norm(float(json_rel['Startup Cost']), 'Startup Cost')
@@ -229,9 +293,14 @@ class AnalyzeJsonParser(FeatureParser):
         if 'Actual Total Time' in json_rel:
             total_time = float(json_rel['Actual Total Time'])
 
+        pages = None
+        if relpages is not None:
+            pages = self.normalizer.norm(estimate_pages(json_rel, relpages), 'Est Pages')
+
         return SampleEntity(node_type, startup_cost, total_cost, rows, width, left,
                             right, startup_time, total_time,
-                            input_relations, self.encode_relation_names(input_relations))
+                            input_relations, self.encode_relation_names(input_relations),
+                            pages)
 
     def encode_relation_names(self, l):
         encode_arr = np.zeros(len(self.input_relations) + 1)

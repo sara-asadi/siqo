@@ -71,7 +71,7 @@ def compute_rank_score(path, pretrain=False, rank_score_type=0):
     return X, Y
 
 
-def training_pairwise(tuning_model_path, model_name, training_data_file, pretrain=False):
+def training_pairwise(tuning_model_path, model_name, training_data_file, pretrain=False, use_pages=False):
     X1, X2 = _load_pairwise_plans(training_data_file)
 
     tuning_model = tuning_model_path is not None
@@ -81,7 +81,7 @@ def training_pairwise(tuning_model_path, model_name, training_data_file, pretrai
         lero_model.load(tuning_model_path)
         feature_generator = lero_model._feature_generator
     else:
-        feature_generator = FeatureGenerator()
+        feature_generator = FeatureGenerator(use_pages)
         feature_generator.fit(X1 + X2)
 
     Y1, Y2 = None, None
@@ -168,8 +168,20 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str)
     parser.add_argument("--pretrain_model_name", type=str)
     parser.add_argument("--rank_score_training_type", type=int)
+    parser.add_argument("--use_pages", action="store_true",
+                        help="Add estimated pages read as a per-node feature (pairwise training)")
+    parser.add_argument("--seed", type=int, default=None)
 
     args = parser.parse_args()
+
+    if args.seed is not None:
+        import random
+        import numpy as np
+        import torch
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+    print("seed:", args.seed)
 
     training_type = 0
     if args.training_type is not None:
@@ -202,7 +214,7 @@ if __name__ == "__main__":
     elif training_type == 1:
         print("training_pairwise")
         training_pairwise(pretrain_model_name, model_name,
-                          training_data, False)
+                          training_data, False, args.use_pages)
     elif training_type == 2:
         print("training_with_rank_score")
         training_with_rank_score(

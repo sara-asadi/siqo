@@ -1,0 +1,112 @@
+seed: 1
+training_type: 1
+training_data: /Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/experiments/pages_ab/train_runs.log.training
+model_name: /Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/experiments/pages_ab/models/base_s1
+pretrain_model_name: None
+rank_score_training_type: 0
+training_pairwise
+RelType :  {'Hash Join', 'Bitmap Index Scan', 'Nested Loop', 'Index Scan', 'Bitmap Heap Scan', 'Sort', 'Seq Scan', 'Aggregate', 'Hash', 'Materialize', 'Merge Join', 'Index Only Scan'}
+Training data set size = 2196
+input_feature_dim: 39
+Epoch 0 training loss: 0.6774152081941861
+Epoch 1 training loss: 0.6380891776605799
+Epoch 2 training loss: 0.6012407915256808
+Epoch 3 training loss: 0.5772214009730695
+Epoch 4 training loss: 0.5687005421732063
+Epoch 5 training loss: 0.5447201885583309
+Epoch 6 training loss: 0.5214201161674274
+Epoch 7 training loss: 0.510817955086171
+Epoch 8 training loss: 0.486206106657514
+Epoch 9 training loss: 0.47988517199455155
+Epoch 10 training loss: 0.4678014721916879
+Epoch 11 training loss: 0.4626510453497361
+Epoch 12 training loss: 0.4513255507069226
+Epoch 13 training loss: 0.44162399790171264
+Epoch 14 training loss: 0.432964271295402
+Epoch 15 training loss: 0.42155369713913055
+Epoch 16 training loss: 0.41879717201404515
+Epoch 17 training loss: 0.4063502741217489
+Epoch 18 training loss: 0.4118010606994979
+Epoch 19 training loss: 0.41210828432228447
+Epoch 20 training loss: 0.39944957273092563
+Epoch 21 training loss: 0.39305194115841924
+Epoch 22 training loss: 0.3815191166014726
+Epoch 23 training loss: 0.3793216511913225
+Epoch 24 training loss: 0.373845816601165
+Epoch 25 training loss: 0.37441607485378275
+Epoch 26 training loss: 0.3601768587284445
+Epoch 27 training loss: 0.36382684668062
+Epoch 28 training loss: 0.35165075330467904
+Epoch 29 training loss: 0.3478205950864114
+Epoch 30 training loss: 0.3530091819198055
+Epoch 31 training loss: 0.3383929160768755
+Epoch 32 training loss: 0.3317442051500478
+Epoch 33 training loss: 0.32544203463636584
+Epoch 34 training loss: 0.3220206302381231
+Epoch 35 training loss: 0.32424332244861204
+Epoch 36 training loss: 0.3306735331846117
+Epoch 37 training loss: 0.3199652199313361
+Epoch 38 training loss: 0.3114217464721558
+Epoch 39 training loss: 0.32010069247761197
+Epoch 40 training loss: 0.31245355359942406
+Epoch 41 training loss: 0.31860869218395443
+Epoch 42 training loss: 0.31485692794513265
+Epoch 43 training loss: 0.3046868630236332
+Epoch 44 training loss: 0.30002463104412425
+Epoch 45 training loss: 0.29939774512162376
+Epoch 46 training loss: 0.29694022485125826
+Epoch 47 training loss: 0.29470253956157877
+Epoch 48 training loss: 0.30757391165842457
+Epoch 49 training loss: 0.2987522219672743
+Epoch 50 training loss: 0.29443234101573246
+Epoch 51 training loss: 0.28158013379888036
+Epoch 52 training loss: 0.28266427534028155
+Epoch 53 training loss: 0.2742374322810482
+Epoch 54 training loss: 0.2809178446452679
+Epoch 55 training loss: 0.27235116051289066
+Epoch 56 training loss: 0.2765498824311008
+Epoch 57 training loss: 0.27540885595770476
+Epoch 58 training loss: 0.2734015161453255
+Epoch 59 training loss: 0.2748738186008359
+Epoch 60 training loss: 0.2790793694200131
+Epoch 61 training loss: 0.265813883638393
+Epoch 62 training loss: 0.2637363912430314
+Epoch 63 training loss: 0.2810791525244242
+Epoch 64 training loss: 0.2741985799368075
+Epoch 65 training loss: 0.2710107758104565
+Epoch 66 training loss: 0.2704678760079373
+Epoch 67 training loss: 0.26218075076053327
+Epoch 68 training loss: 0.2700429088551729
+Epoch 69 training loss: 0.26585772490859266
+Epoch 70 training loss: 0.26405191295696206
+Epoch 71 training loss: 0.2575308667452784
+Epoch 72 training loss: 0.2542322231586764
+Epoch 73 training loss: 0.25840941719457106
+Epoch 74 training loss: 0.2630788017739941
+Epoch 75 training loss: 0.25787142616748593
+Epoch 76 training loss: 0.2618228115548436
+Epoch 77 training loss: 0.2590457207990998
+Epoch 78 training loss: 0.26446187542783783
+Epoch 79 training loss: 0.26258433288290994
+Epoch 80 training loss: 0.24559814502312097
+Epoch 81 training loss: 0.247995519036159
+Epoch 82 training loss: 0.25413161184018346
+Epoch 83 training loss: 0.24234694183102243
+Epoch 84 training loss: 0.24446331361681523
+Epoch 85 training loss: 0.24283890231804786
+Epoch 86 training loss: 0.24587228309725195
+Epoch 87 training loss: 0.24489606573029096
+Epoch 88 training loss: 0.2484314691744158
+Epoch 89 training loss: 0.25716461868025675
+Epoch 90 training loss: 0.23772297845956045
+Epoch 91 training loss: 0.24881286241224018
+Epoch 92 training loss: 0.24174207357816957
+Epoch 93 training loss: 0.23549366502594704
+Epoch 94 training loss: 0.2401763953737908
+Epoch 95 training loss: 0.2404725910390222
+Epoch 96 training loss: 0.2407692943150275
+Epoch 97 training loss: 0.24781702208310083
+Epoch 98 training loss: 0.23786825989896973
+Epoch 99 training loss: 0.2464072459827634
+training time: 598.3207678794861 batch size: 64
+saving model...
