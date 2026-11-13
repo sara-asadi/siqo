@@ -1,0 +1,2 @@
+# per-query stdout of the collector (plans + SQL, regenerate by re-running)
+collect.out
