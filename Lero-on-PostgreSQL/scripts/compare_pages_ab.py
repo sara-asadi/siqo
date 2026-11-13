@@ -56,13 +56,16 @@ def main():
     ap.add_argument("--eval_dir", required=True)
     ap.add_argument("--seeds", nargs="+", default=["0", "1"])
     ap.add_argument("--out")
+    ap.add_argument("--a", default="base", help="reference variant name")
+    ap.add_argument("--b", default="pages", help="variant compared against --a")
+    ap.add_argument("--title", default="Lero vs Lero + estimated pages-read feature — JOB test")
     args = ap.parse_args()
 
     pg_runs = [parse(p) for p in sorted(glob.glob(os.path.join(args.eval_dir, "pg_r*.log")))]
     variants = {"pg": load_variant(args.eval_dir, "pg")}
     for s in args.seeds:
-        variants[f"base_s{s}"] = load_variant(args.eval_dir, f"base_s{s}")
-        variants[f"pages_s{s}"] = load_variant(args.eval_dir, f"pages_s{s}")
+        variants[f"{args.a}_s{s}"] = load_variant(args.eval_dir, f"{args.a}_s{s}")
+        variants[f"{args.b}_s{s}"] = load_variant(args.eval_dir, f"{args.b}_s{s}")
     imdb = load_variant(args.eval_dir, "imdb_pw")
     if imdb:
         variants["imdb_pw"] = imdb
@@ -78,7 +81,7 @@ def main():
         sym = sorted(max(r, 1 / r) for r in ratios)
         noise = (geomean(ratios), sym[int(0.9 * (len(sym) - 1))])
 
-    L = ["# Lero vs Lero + estimated pages-read feature — JOB test", ""]
+    L = [f"# {args.title}", ""]
     L.append(f"Queries: **{len(qs)}** (job_excl_29). Latency = mean of repetitions; speedup = PG / variant (>1 is faster than PG).")
     if noise:
         L.append(f"Noise (PG pass 1 vs pass 2, same plans): geomean ratio {noise[0]:.3f}, p90 |ratio| {noise[1]:.2f}x.")
@@ -95,13 +98,13 @@ def main():
         L.append(f"| {name} | {tot/1e3:.1f} | {tot_pg/tot:.3f}x | {geo:.3f}x | {pages:.1f} | {plan:.1f} | {same}/{len(qs)} |")
 
     thr = noise[1] if noise else 1.5
-    L += ["", f"## Head-to-head: pages vs base (same seed)", "",
+    L += ["", f"## Head-to-head: {args.b} vs {args.a} (same seed)", "",
           f"Win/loss = latency ratio beyond the p90 noise ({thr:.2f}x) and >5 ms difference.", "",
-          "| seed | geomean base/pages | total base (s) | total pages (s) | plans differ | pages wins | pages losses |",
+          f"| seed | geomean {args.a}/{args.b} | total {args.a} (s) | total {args.b} (s) | plans differ | {args.b} wins | {args.b} losses |",
           "|---|---:|---:|---:|---:|---:|---:|"]
     detail = []
     for s in args.seeds:
-        b, p = variants.get(f"base_s{s}"), variants.get(f"pages_s{s}")
+        b, p = variants.get(f"{args.a}_s{s}"), variants.get(f"{args.b}_s{s}")
         if not b or not p:
             continue
         geo = geomean([b[q]["ms"] / max(p[q]["ms"], 1e-3) for q in qs])
@@ -113,8 +116,8 @@ def main():
         detail.append((s, wins, losses, b, p))
     for s, wins, losses, b, p in detail:
         fmt = lambda qq: ", ".join(f"{q} {b[q]['ms']/max(p[q]['ms'],1e-3):.1f}x" for q in qq) or "—"
-        L.append(f"\n- seed {s} wins (base/pages): {fmt(wins)}")
-        L.append(f"- seed {s} losses (base/pages): {fmt(losses)}")
+        L.append(f"\n- seed {s} wins ({args.a}/{args.b}): {fmt(wins)}")
+        L.append(f"- seed {s} losses ({args.a}/{args.b}): {fmt(losses)}")
 
     cols = [k for k in variants]
     L += ["", "## Per-query latency (ms) and pages touched (k)", "",

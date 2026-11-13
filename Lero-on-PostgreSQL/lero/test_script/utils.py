@@ -185,7 +185,13 @@ def do_run_query(sql, query_name, run_args, latency_file, write_latency_file = T
                     manager_dict[cur_plan_str] = 1
                     manager_lock.release()
 
-            # 3. run current query 
+            # 3. run current query
+            # LERO_WARMUP_RUNS=n: untimed runs first, so the timed run does not pay for a cold cache
+            for _ in range(int(os.environ.get("LERO_WARMUP_RUNS", "0"))):
+                try:
+                    run_query(sql, run_args)
+                except psycopg2.errors.QueryCanceled:
+                    break
             run_start = time()
             try:
                 _, latency_json = run_query("EXPLAIN (ANALYZE, BUFFERS, TIMING, VERBOSE, COSTS, SUMMARY, FORMAT JSON) " + sql, run_args)

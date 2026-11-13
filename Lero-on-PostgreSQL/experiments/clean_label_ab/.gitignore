@@ -1,0 +1,5 @@
+# rebuilt by run_clean_label_ab.sh from the two collections' train_runs.log
+old_subset.log
+*.training
+# output of the run stopped for Low Power Mode / sleep (see run_eval.out for the valid one)
+run.out
