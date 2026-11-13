@@ -97,6 +97,22 @@ def main():
         same = sum(v[q]["sig"] == pg[q]["sig"] for q in qs)
         L.append(f"| {name} | {tot/1e3:.1f} | {tot_pg/tot:.3f}x | {geo:.3f}x | {pages:.1f} | {plan:.1f} | {same}/{len(qs)} |")
 
+    # across seeds: is the gain larger than seed-to-seed variation?
+    paired = [(s, variants.get(f"{args.a}_s{s}"), variants.get(f"{args.b}_s{s}")) for s in args.seeds]
+    paired = [(s, a, b) for s, a, b in paired if a and b]
+    if len(paired) >= 3:
+        geo_pg = lambda v: geomean([pg[q]["ms"] / max(v[q]["ms"], 1e-3) for q in qs])
+        ga = [geo_pg(a) for _, a, _ in paired]
+        gb = [geo_pg(b) for _, _, b in paired]
+        ratio = [y / x for x, y in zip(ga, gb)]
+        L += ["", f"## Across seeds ({len(paired)} seeds)", "",
+              "| variant | geomean vs PG: mean | sd | min | max |", "|---|---:|---:|---:|---:|"]
+        for name, g in [(args.a, ga), (args.b, gb)]:
+            L.append(f"| {name} | {statistics.mean(g):.3f}x | {statistics.stdev(g):.3f} | {min(g):.3f}x | {max(g):.3f}x |")
+        L += ["", f"Per seed, {args.b} / {args.a} geomean speedup: " + ", ".join(f"s{s} {r:.3f}" for (s, _, _), r in zip(paired, ratio)),
+              f"{args.b} better on {sum(r > 1 for r in ratio)} of {len(ratio)} seeds; "
+              f"mean ratio {statistics.mean(ratio):.3f} (sd {statistics.stdev(ratio):.3f})"]
+
     thr = noise[1] if noise else 1.5
     L += ["", f"## Head-to-head: {args.b} vs {args.a} (same seed)", "",
           f"Win/loss = latency ratio beyond the p90 noise ({thr:.2f}x) and >5 ms difference.", "",

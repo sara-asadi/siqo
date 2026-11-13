@@ -5,6 +5,7 @@
 # Usage:
 #   ./scripts/run_clean_label_ab.sh
 #   SEEDS="0 1 2" SKIP_TRAIN=1 ./scripts/run_clean_label_ab.sh   # re-run eval only
+#   RUN_ID=clean_label_ab_5seeds SEEDS="0 1 2 3 4" REPEATS=1 ./scripts/run_clean_label_ab.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,17 +64,29 @@ run_pass() {
 }
 
 PASSES=()
+i=0
 for seed in ${SEEDS}; do
-  PASSES+=("old_s${seed}" "clean_s${seed}")
+  # alternate which variant runs first so slow drift does not favour one of them
+  if (( i++ % 2 == 0 )); then PASSES+=("old_s${seed}" "clean_s${seed}"); else PASSES+=("clean_s${seed}" "old_s${seed}"); fi
 done
 
-run_pass pg_r1 pg
-for p in "${PASSES[@]}"; do run_pass "${p}_r1" lero "${MODEL_DIR}/${p}"; done
-# reversed order for the second repetition cancels slow drift on this box
-for ((i=${#PASSES[@]}-1; i>=0; i--)); do
-  run_pass "${PASSES[$i]}_r2" lero "${MODEL_DIR}/${PASSES[$i]}"
-done
-run_pass pg_r2 pg
+if [[ "${REPEATS:-2}" == 1 ]]; then
+  # one pass per model (seeds give the replication); PG at start, middle and end
+  half=$(( ${#PASSES[@]} / 2 ))
+  run_pass pg_r1 pg
+  for ((i=0; i<half; i++)); do run_pass "${PASSES[$i]}_r1" lero "${MODEL_DIR}/${PASSES[$i]}"; done
+  run_pass pg_r2 pg
+  for ((i=half; i<${#PASSES[@]}; i++)); do run_pass "${PASSES[$i]}_r1" lero "${MODEL_DIR}/${PASSES[$i]}"; done
+  run_pass pg_r3 pg
+else
+  run_pass pg_r1 pg
+  for p in "${PASSES[@]}"; do run_pass "${p}_r1" lero "${MODEL_DIR}/${p}"; done
+  # reversed order for the second repetition cancels slow drift on this box
+  for ((i=${#PASSES[@]}-1; i>=0; i--)); do
+    run_pass "${PASSES[$i]}_r2" lero "${MODEL_DIR}/${PASSES[$i]}"
+  done
+  run_pass pg_r2 pg
+fi
 
 "${VENV_PY}" "${SCRIPT_DIR}/compare_pages_ab.py" --eval_dir "${OUT_DIR}/eval" --seeds ${SEEDS} \
   --a old --b clean --title "Lero trained on cold vs cache-controlled latency labels — JOB test" \

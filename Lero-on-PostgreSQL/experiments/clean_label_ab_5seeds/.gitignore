@@ -1,0 +1,3 @@
+# rebuilt by run_clean_label_ab.sh from the two collections' train_runs.log
+old_subset.log
+*.training

@@ -1,0 +1,113 @@
+seed: 3
+training_type: 1
+training_data: /Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/experiments/clean_label_ab_5seeds/clean.training
+model_name: /Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/experiments/clean_label_ab_5seeds/models/clean_s3
+pretrain_model_name: None
+rank_score_training_type: 0
+training_pairwise
+RelType :  {'Bitmap Index Scan', 'Sort', 'Seq Scan', 'Bitmap Heap Scan', 'Merge Join', 'Aggregate', 'Hash', 'Index Only Scan', 'Index Scan', 'Materialize', 'Nested Loop', 'Hash Join'}
+Training data set size = 421
+input_feature_dim: 39
+aux_pages_weight: 0.0
+Epoch 0 training loss: 0.689320769210237 aux pages loss: 0.0
+Epoch 1 training loss: 0.6726503343898657 aux pages loss: 0.0
+Epoch 2 training loss: 0.657067336312684 aux pages loss: 0.0
+Epoch 3 training loss: 0.6487253826463355 aux pages loss: 0.0
+Epoch 4 training loss: 0.6463257541231923 aux pages loss: 0.0
+Epoch 5 training loss: 0.617740932051981 aux pages loss: 0.0
+Epoch 6 training loss: 0.6072159947100886 aux pages loss: 0.0
+Epoch 7 training loss: 0.5830241730118179 aux pages loss: 0.0
+Epoch 8 training loss: 0.5608637403563642 aux pages loss: 0.0
+Epoch 9 training loss: 0.5367904716755005 aux pages loss: 0.0
+Epoch 10 training loss: 0.5077391159374337 aux pages loss: 0.0
+Epoch 11 training loss: 0.5039979226449803 aux pages loss: 0.0
+Epoch 12 training loss: 0.4676785075022282 aux pages loss: 0.0
+Epoch 13 training loss: 0.47018116101193874 aux pages loss: 0.0
+Epoch 14 training loss: 0.453544377089912 aux pages loss: 0.0
+Epoch 15 training loss: 0.44713275276455017 aux pages loss: 0.0
+Epoch 16 training loss: 0.4433326477010417 aux pages loss: 0.0
+Epoch 17 training loss: 0.43386615941270407 aux pages loss: 0.0
+Epoch 18 training loss: 0.42966948396722177 aux pages loss: 0.0
+Epoch 19 training loss: 0.4026453646640417 aux pages loss: 0.0
+Epoch 20 training loss: 0.3883256031885024 aux pages loss: 0.0
+Epoch 21 training loss: 0.4134570198788042 aux pages loss: 0.0
+Epoch 22 training loss: 0.3775154761000886 aux pages loss: 0.0
+Epoch 23 training loss: 0.38833400336382384 aux pages loss: 0.0
+Epoch 24 training loss: 0.3889104413651935 aux pages loss: 0.0
+Epoch 25 training loss: 0.38325826526519496 aux pages loss: 0.0
+Epoch 26 training loss: 0.35987892309004277 aux pages loss: 0.0
+Epoch 27 training loss: 0.3642081143615112 aux pages loss: 0.0
+Epoch 28 training loss: 0.33402518963206346 aux pages loss: 0.0
+Epoch 29 training loss: 0.3135188071725815 aux pages loss: 0.0
+Epoch 30 training loss: 0.3220584016758711 aux pages loss: 0.0
+Epoch 31 training loss: 0.31464329610513736 aux pages loss: 0.0
+Epoch 32 training loss: 0.30922229536505413 aux pages loss: 0.0
+Epoch 33 training loss: 0.3576880356789577 aux pages loss: 0.0
+Epoch 34 training loss: 0.3450319410723029 aux pages loss: 0.0
+Epoch 35 training loss: 0.32800411058593726 aux pages loss: 0.0
+Epoch 36 training loss: 0.2994568139835873 aux pages loss: 0.0
+Epoch 37 training loss: 0.2757174630675593 aux pages loss: 0.0
+Epoch 38 training loss: 0.26524700100095855 aux pages loss: 0.0
+Epoch 39 training loss: 0.28812073487868445 aux pages loss: 0.0
+Epoch 40 training loss: 0.32293445367151224 aux pages loss: 0.0
+Epoch 41 training loss: 0.31846794255374267 aux pages loss: 0.0
+Epoch 42 training loss: 0.32014265178623585 aux pages loss: 0.0
+Epoch 43 training loss: 0.32635943256626987 aux pages loss: 0.0
+Epoch 44 training loss: 0.2617389805068671 aux pages loss: 0.0
+Epoch 45 training loss: 0.27003947125233385 aux pages loss: 0.0
+Epoch 46 training loss: 0.2701020000260551 aux pages loss: 0.0
+Epoch 47 training loss: 0.28428664107404394 aux pages loss: 0.0
+Epoch 48 training loss: 0.28845459024623316 aux pages loss: 0.0
+Epoch 49 training loss: 0.26609672088805875 aux pages loss: 0.0
+Epoch 50 training loss: 0.2394120753883114 aux pages loss: 0.0
+Epoch 51 training loss: 0.2577256586956581 aux pages loss: 0.0
+Epoch 52 training loss: 0.26435606295628655 aux pages loss: 0.0
+Epoch 53 training loss: 0.2560189724248828 aux pages loss: 0.0
+Epoch 54 training loss: 0.2521225702756089 aux pages loss: 0.0
+Epoch 55 training loss: 0.23980600302974503 aux pages loss: 0.0
+Epoch 56 training loss: 0.2537381290429951 aux pages loss: 0.0
+Epoch 57 training loss: 0.24327847024424556 aux pages loss: 0.0
+Epoch 58 training loss: 0.24655009842602985 aux pages loss: 0.0
+Epoch 59 training loss: 0.24521426221488873 aux pages loss: 0.0
+Epoch 60 training loss: 0.23060170937856214 aux pages loss: 0.0
+Epoch 61 training loss: 0.23996742028112023 aux pages loss: 0.0
+Epoch 62 training loss: 0.22617032943297796 aux pages loss: 0.0
+Epoch 63 training loss: 0.22044961788826176 aux pages loss: 0.0
+Epoch 64 training loss: 0.2211125022904352 aux pages loss: 0.0
+Epoch 65 training loss: 0.23187235878462706 aux pages loss: 0.0
+Epoch 66 training loss: 0.21715504383405587 aux pages loss: 0.0
+Epoch 67 training loss: 0.21376052034444168 aux pages loss: 0.0
+Epoch 68 training loss: 0.24239326593002483 aux pages loss: 0.0
+Epoch 69 training loss: 0.2127282884441733 aux pages loss: 0.0
+Epoch 70 training loss: 0.23158345215031845 aux pages loss: 0.0
+Epoch 71 training loss: 0.24166989978790235 aux pages loss: 0.0
+Epoch 72 training loss: 0.21091192056014446 aux pages loss: 0.0
+Epoch 73 training loss: 0.22580137186264518 aux pages loss: 0.0
+Epoch 74 training loss: 0.2070878933797118 aux pages loss: 0.0
+Epoch 75 training loss: 0.22096622381805536 aux pages loss: 0.0
+Epoch 76 training loss: 0.20542517516812145 aux pages loss: 0.0
+Epoch 77 training loss: 0.20407866793535698 aux pages loss: 0.0
+Epoch 78 training loss: 0.221225213366196 aux pages loss: 0.0
+Epoch 79 training loss: 0.20172804808293623 aux pages loss: 0.0
+Epoch 80 training loss: 0.21761261819547442 aux pages loss: 0.0
+Epoch 81 training loss: 0.2148135498215825 aux pages loss: 0.0
+Epoch 82 training loss: 0.21342489447383678 aux pages loss: 0.0
+Epoch 83 training loss: 0.2020519267087249 aux pages loss: 0.0
+Epoch 84 training loss: 0.20395072925975866 aux pages loss: 0.0
+Epoch 85 training loss: 0.19367308950106837 aux pages loss: 0.0
+Epoch 86 training loss: 0.19589735493434965 aux pages loss: 0.0
+Epoch 87 training loss: 0.20603440948440052 aux pages loss: 0.0
+Epoch 88 training loss: 0.18593154960690367 aux pages loss: 0.0
+Epoch 89 training loss: 0.2099030485555053 aux pages loss: 0.0
+Epoch 90 training loss: 0.23628228940504278 aux pages loss: 0.0
+Epoch 91 training loss: 0.20818246641635757 aux pages loss: 0.0
+Epoch 92 training loss: 0.2014927059844776 aux pages loss: 0.0
+Epoch 93 training loss: 0.22856541317876347 aux pages loss: 0.0
+Epoch 94 training loss: 0.20853727278135006 aux pages loss: 0.0
+Epoch 95 training loss: 0.19676388866522782 aux pages loss: 0.0
+Epoch 96 training loss: 0.20184683057458552 aux pages loss: 0.0
+Epoch 97 training loss: 0.19815213320148375 aux pages loss: 0.0
+Epoch 98 training loss: 0.19757128722771258 aux pages loss: 0.0
+Epoch 99 training loss: 0.18443861407488668 aux pages loss: 0.0
+training time: 49.09084486961365 batch size: 64
+saving model...
