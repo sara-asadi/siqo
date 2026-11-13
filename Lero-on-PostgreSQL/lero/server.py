@@ -144,6 +144,8 @@ class LeroJSONHandler(socketserver.BaseRequestHandler):
 
 
 def start_server(listen_on, port, model: LeroModel):
+    # allow an immediate restart on the same port (e.g. switching LERO_DB between runs)
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer((listen_on, port), LeroJSONHandler) as server:
         server.model = model
         server.feature_generator = model._feature_generator if model is not None else None

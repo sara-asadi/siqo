@@ -1,0 +1,1 @@
+{"variant": "robustnoaux", "seed": 1, "pair_acc": 0.7255813953488373, "picked_s": 355.122559, "pg_s": 414.73475400000024, "oracle_s": 280.97975300000013, "geomean_vs_pg": 1.5749969285829168, "held_out_queries": 186}

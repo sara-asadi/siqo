@@ -6,7 +6,8 @@ PORT = 5433
 HOST = "localhost"
 USER = "postgres"
 PASSWORD = "postgres"
-DB = "imdb"
+# database name; override with LERO_DB (e.g. the data-updated copy)
+DB = os.environ.get("LERO_DB", "imdb")
 CONNECTION_STR = (
     "dbname=" + DB
     + " user=" + USER

@@ -1,0 +1,33 @@
+OK Postgres localhost:5433/imdb
+==> [imdb_upd] pg_warmup
+==> [imdb_upd] pg
+{"msg_type": "succ"}
+==> [imdb_upd] base_s0
+{"msg_type": "succ"}
+==> [imdb_upd] robust_s0
+{"msg_type": "succ"}
+==> [imdb_upd] base_s1
+{"msg_type": "succ"}
+==> [imdb_upd] robust_s1
+{"msg_type": "succ"}
+==> [imdb_upd] imdb_pw
+./scripts/run_robust_update.sh: line 49: 23095 Terminated: 15          LERO_DB="${db}" nohup "${VENV_PY}" -u server.py > "${OUT_DIR}/server_${db}.out" 2>&1
+# Robustness to data updates — Lero variants on JOB
+
+Models are trained once on `imdb` and evaluated on each database without retraining.
+`imdb_upd` = `imdb` with every movie after the cutoff year (and all referencing rows) deleted, then VACUUM FULL + ANALYZE (scripts/make_updated_db.sh).
+Speedups are vs PostgreSQL on the same database (>1 = faster than PG). One timed pass per model.
+
+## imdb_upd (110 queries)
+
+| model | total exec (s) | total speedup vs PG | geomean speedup vs PG | >2x slower than PG | pages touched (M) | same plan as PG |
+|---|---:|---:|---:|---:|---:|---:|
+| base_s0 | 152.4 | 0.703x | 0.643x | 29 | 212.6 | 11/110 |
+| base_s1 | 146.2 | 0.733x | 0.752x | 23 | 247.5 | 11/110 |
+| imdb_pw | 130.4 | 0.822x | 0.738x | 26 | 153.9 | 22/110 |
+| pg | 107.2 | 1.000x | 1.000x | 0 | 140.7 | 110/110 |
+| robust_s0 | 145.4 | 0.737x | 0.756x | 22 | 176.5 | 21/110 |
+| robust_s1 | 154.3 | 0.695x | 0.696x | 23 | 259.0 | 13/110 |
+
+
+Done. Artifacts in /Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/experiments/robust_update

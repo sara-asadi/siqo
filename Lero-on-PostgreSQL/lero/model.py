@@ -29,6 +29,9 @@ def _feature_generator_path(base):
 def _input_feature_dim_path(base):
     return os.path.join(base, "input_feature_dim")
 
+def _aux_pages_weight_path(base):
+    return os.path.join(base, "aux_pages_weight")
+
 def collate_fn(x):
     trees = []
     targets = []
@@ -62,8 +65,43 @@ def right_child(x: SampleEntity):
     return x.get_right()
 
 
+def _preorder_labels(tree: SampleEntity, attr):
+    """Per-node labels in the same preorder as TreeConvolution's _flatten."""
+    out = [getattr(tree, attr, None)]
+    if tree.get_left() is not None:
+        out += _preorder_labels(tree.get_left(), attr)
+        out += _preorder_labels(tree.get_right(), attr)
+    return out
+
+
+def pages_aux_loss(net, x, prepared):
+    """MSE on log actual pages: per node (own pages) and per plan (total), masked where unknown."""
+    node_pred, total_pred = net.forward_pages(prepared)
+    node_labels = [_preorder_labels(t, "self_pages_label") for t in x]
+    n = node_pred.shape[1]
+    target = torch.zeros((len(x), n))
+    mask = torch.zeros((len(x), n))
+    for i, labels in enumerate(node_labels):
+        for j, v in enumerate(labels):
+            if v is not None:
+                # position 0 of the conv output is the zero padding node
+                target[i, j + 1] = v
+                mask[i, j + 1] = 1
+    target, mask = target.to(node_pred.device), mask.to(node_pred.device)
+    loss = torch.tensor(0.0, device=node_pred.device)
+    if mask.sum() > 0:
+        loss = loss + (((node_pred - target) ** 2) * mask).sum() / mask.sum()
+
+    totals = [(i, t.total_pages_label) for i, t in enumerate(x) if t.total_pages_label is not None]
+    if totals:
+        idx = torch.tensor([i for i, _ in totals], device=total_pred.device)
+        tgt = torch.tensor([v for _, v in totals], device=total_pred.device)
+        loss = loss + ((total_pred[idx, 0] - tgt) ** 2).mean()
+    return loss
+
+
 class LeroNet(nn.Module):
-    def __init__(self, input_feature_dim) -> None:
+    def __init__(self, input_feature_dim, pages_head=False) -> None:
         super(LeroNet, self).__init__()
         self.input_feature_dim = input_feature_dim
         self._cuda = False
@@ -83,9 +121,20 @@ class LeroNet(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(32, 1)
         )
+        # auxiliary heads predicting log pages read (trained from EXPLAIN BUFFERS)
+        self.pages_head = pages_head
+        if pages_head:
+            self.node_pages_head = nn.Conv1d(64, 1, kernel_size=1)
+            self.total_pages_head = nn.Linear(64, 1)
 
     def forward(self, trees):
         return self.tree_conv(trees)
+
+    def forward_pages(self, trees):
+        """(per-node log pages [batch, nodes+1], per-plan log pages [batch, 1])"""
+        node_emb, _ = self.tree_conv[:8](trees)
+        pooled = self.tree_conv[8]((node_emb, None))
+        return self.node_pages_head(node_emb).squeeze(1), self.total_pages_head(pooled)
 
     def build_trees(self, feature):
         return prepare_trees(feature, transformer, left_child, right_child, cuda=self._cuda, device=self.device)
@@ -107,7 +156,12 @@ class LeroModel():
         with open(_input_feature_dim_path(path), "rb") as f:
             self._input_feature_dim = joblib.load(f)
 
-        self._net = LeroNet(self._input_feature_dim)
+        self._aux_pages_weight = 0.0
+        if os.path.exists(_aux_pages_weight_path(path)):
+            with open(_aux_pages_weight_path(path), "rb") as f:
+                self._aux_pages_weight = joblib.load(f)
+
+        self._net = LeroNet(self._input_feature_dim, self._aux_pages_weight > 0)
         if CUDA:
             self._net.load_state_dict(torch.load(_nn_path(path)))
         else:
@@ -130,6 +184,9 @@ class LeroModel():
             joblib.dump(self._feature_generator, f)
         with open(_input_feature_dim_path(path), "wb") as f:
             joblib.dump(self._input_feature_dim, f)
+        if getattr(self, "_aux_pages_weight", 0.0) > 0:
+            with open(_aux_pages_weight_path(path), "wb") as f:
+                joblib.dump(self._aux_pages_weight, f)
 
     def fit(self, X, Y, pre_training=False):
         if isinstance(Y, list):
@@ -218,13 +275,22 @@ class LeroModel():
         pred = self._net(tree).cpu().detach().numpy()
         return pred
 
+    def predict_pages(self, x):
+        """Predicted total pages read per plan (only for models trained with the pages head)."""
+        if not isinstance(x, list):
+            x = [x]
+        _, total = self._net.forward_pages(self._net.build_trees(x))
+        return np.expm1(total.detach().cpu().numpy()[:, 0] * 10)
+
 
 class LeroModelPairWise(LeroModel):
     def __init__(self, feature_generator) -> None:
         super().__init__(feature_generator)
 
-    def fit(self, X1, X2, Y1, Y2, pre_training=False):
+    def fit(self, X1, X2, Y1, Y2, pre_training=False, aux_pages_weight=0.0):
         assert len(X1) == len(X2) and len(Y1) == len(Y2) and len(X1) == len(Y1)
+        if not pre_training:
+            self._aux_pages_weight = aux_pages_weight
         if isinstance(Y1, list):
             Y1 = np.array(Y1)
             Y1 = Y1.reshape(-1, 1)
@@ -237,13 +303,15 @@ class LeroModelPairWise(LeroModel):
             input_feature_dim = len(X1[0].get_feature())
             print("input_feature_dim:", input_feature_dim)
 
-            self._net = LeroNet(input_feature_dim)
+            self._net = LeroNet(input_feature_dim, self._aux_pages_weight > 0)
             self._input_feature_dim = input_feature_dim
             if CUDA:
                 self._net = self._net.cuda(device)
                 self._net = torch.nn.DataParallel(
                     self._net, device_ids=GPU_LIST)
                 self._net.cuda(device)
+        aux_weight = getattr(self, "_aux_pages_weight", 0.0)
+        print("aux_pages_weight:", aux_weight)
 
         pairs = []
         for i in range(len(X1)):
@@ -272,6 +340,7 @@ class LeroModelPairWise(LeroModel):
         start_time = time()
         for epoch in range(100):
             loss_accum = 0
+            aux_accum = 0
             for x1, x2, label in dataset:
 
                 tree_x1, tree_x2 = None, None
@@ -293,6 +362,11 @@ class LeroModelPairWise(LeroModel):
                     label_y = label_y.cuda(device)
 
                 loss = bce_loss_fn(prob_y, label_y)
+                if aux_weight > 0:
+                    net = self._net.module if CUDA else self._net
+                    aux = pages_aux_loss(net, x1, tree_x1) + pages_aux_loss(net, x2, tree_x2)
+                    aux_accum += aux.item()
+                    loss = loss + aux_weight * aux
                 loss_accum += loss.item()
 
                 if CUDA:
@@ -307,6 +381,6 @@ class LeroModelPairWise(LeroModel):
             loss_accum /= len(dataset)
             losses.append(loss_accum)
 
-            print("Epoch", epoch, "training loss:", loss_accum)
+            print("Epoch", epoch, "training loss:", loss_accum, "aux pages loss:", aux_accum / len(dataset))
         print("training time:", time() - start_time, "batch size:", batch_size)
-        
+

@@ -1,0 +1,17 @@
+OK Postgres localhost:5433/imdb
+==> Train robust seed 0
+==> Train robust seed 1
+==> [imdb] pg_warmup
+==> [imdb] pg
+{"msg_type": "succ"}
+==> [imdb] base_s0
+{"msg_type": "succ"}
+==> [imdb] robust_s0
+{"msg_type": "succ"}
+==> [imdb] base_s1
+{"msg_type": "succ"}
+==> [imdb] robust_s1
+{"msg_type": "succ"}
+==> [imdb] imdb_pw
+./scripts/run_robust_update.sh: line 49: 20580 Terminated: 15          LERO_DB="${db}" nohup "${VENV_PY}" -u server.py > "${OUT_DIR}/server_${db}.out" 2>&1
+ERROR: Lero server did not start

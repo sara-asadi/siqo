@@ -1,4 +1,5 @@
 import json
+import time
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
@@ -31,6 +32,46 @@ def load_relpages():
         return {name: int(pages) for name, pages in cur.fetchall()}
     finally:
         conn.close()
+
+
+# Live table statistics for the robust feature mode. Re-read from pg_class so that
+# after data updates (+ ANALYZE) the model sees the current table sizes without retraining.
+TABLE_STATS_TTL_S = 30
+_table_stats_cache = {"at": 0.0, "stats": None}
+
+
+def load_table_stats():
+    """relname -> (relpages, reltuples) of the database in test_script.config."""
+    import psycopg2
+    from test_script.config import CONNECTION_STR
+    conn = psycopg2.connect(CONNECTION_STR)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT relname, relpages, reltuples FROM pg_class "
+                    "WHERE relkind = 'r' AND relnamespace = 'public'::regnamespace")
+        return {name: (int(pages), max(float(tuples), 0.0)) for name, pages, tuples in cur.fetchall()}
+    finally:
+        conn.close()
+
+
+def current_table_stats():
+    now = time.time()
+    if _table_stats_cache["stats"] is None or now - _table_stats_cache["at"] > TABLE_STATS_TTL_S:
+        _table_stats_cache["stats"] = load_table_stats()
+        _table_stats_cache["at"] = now
+    return _table_stats_cache["stats"]
+
+
+# Fixed log scales (not fitted on training data), so values stay meaningful after updates.
+def _log_scale(x, scale):
+    return np.log1p(max(float(x), 0.0)) / scale
+
+
+def actual_pages(n):
+    """Shared Hit + Read Blocks of a node (cumulative over its subtree and loops), or None."""
+    if "Shared Hit Blocks" not in n:
+        return None
+    return float(n["Shared Hit Blocks"]) + float(n["Shared Read Blocks"])
 
 
 def estimate_pages(n, relpages):
@@ -69,11 +110,13 @@ def json_str_to_json_obj(json_data):
 
 class FeatureGenerator():
 
-    def __init__(self, use_pages=False) -> None:
+    def __init__(self, use_pages=False, robust=False) -> None:
         self.normalizer = None
         self.feature_parser = None
         self.use_pages = use_pages
         self.relpages = None
+        # robust: live table stats, no table-identity one-hot, fixed scaling
+        self.robust = robust
 
     def fit(self, trees):
         exec_times = []
@@ -143,7 +186,8 @@ class FeatureGenerator():
             maxs["Execution Time"] = exec_times_max
         self.normalizer = Normalizer(mins, maxs)
         self.feature_parser = AnalyzeJsonParser(self.normalizer, list(input_relations),
-                                                self.relpages if use_pages else None)
+                                                self.relpages if use_pages else None,
+                                                getattr(self, "robust", False))
 
     def transform(self, trees):
         local_features = []
@@ -172,7 +216,8 @@ class SampleEntity():
                  left, right,
                  startup_time: float, total_time: float,
                  input_tables: list, encoded_input_tables: list,
-                 pages: float = None) -> None:
+                 pages: float = None, robust_features: np.ndarray = None,
+                 self_pages_label: float = None, total_pages_label: float = None) -> None:
         self.node_type = node_type
         self.startup_cost = startup_cost
         self.total_cost = total_cost
@@ -186,6 +231,11 @@ class SampleEntity():
         self.encoded_input_tables = encoded_input_tables
         # normalized estimated pages read; None when the model does not use it
         self.pages = pages
+        # robust mode: replaces table one-hot, width and pages above
+        self.robust_features = robust_features
+        # log-scaled actual pages from EXPLAIN BUFFERS (training targets; None if unknown)
+        self.self_pages_label = self_pages_label
+        self.total_pages_label = total_pages_label
 
     def __str__(self):
         return "{%s, %s, %s, %s, %s, [%s], [%s], %s, %s, [%s], [%s]}" % (self.node_type,
@@ -196,6 +246,8 @@ class SampleEntity():
 
     def get_feature(self):
         # return np.hstack((self.node_type, np.array([self.width, self.rows])))
+        if getattr(self, "robust_features", None) is not None:
+            return np.hstack((self.node_type, np.array([self.rows]), self.robust_features))
         if self.pages is not None:
             return np.hstack((self.node_type, np.array(self.encoded_input_tables),
                               np.array([self.width, self.rows, self.pages])))
@@ -248,10 +300,25 @@ class FeatureParser(metaclass=ABCMeta):
 # the json file is created by "EXPLAIN (ANALYZE, VERBOSE, COSTS, BUFFERS, TIMING, SUMMARY, FORMAT JSON) ..."
 class AnalyzeJsonParser(FeatureParser):
 
-    def __init__(self, normalizer: Normalizer, input_relations: list, relpages: dict = None) -> None:
+    def __init__(self, normalizer: Normalizer, input_relations: list, relpages: dict = None,
+                 robust: bool = False) -> None:
         self.normalizer = normalizer
         self.input_relations = input_relations
         self.relpages = relpages
+        self.robust = robust
+
+    def robust_features(self, json_rel, stats):
+        """log width, est. pages of the subtree, and table size stats for scans."""
+        relpages = {name: s[0] for name, s in stats.items()}
+        rel_pages, rel_tuples, tuples_per_page = 0.0, 0.0, 0.0
+        if json_rel["Node Type"] in SCAN_TYPES:
+            rel_pages, rel_tuples = stats.get(json_rel["Relation Name"], (0, 0.0))
+            tuples_per_page = rel_tuples / max(rel_pages, 1)
+        return np.array([_log_scale(json_rel["Plan Width"], 10),
+                         _log_scale(estimate_pages(json_rel, relpages), 20),
+                         _log_scale(rel_pages, 15),
+                         _log_scale(rel_tuples, 20),
+                         _log_scale(tuples_per_page, 8)])
 
     def extract_feature(self, json_rel) -> SampleEntity:
         left = None
@@ -259,7 +326,9 @@ class AnalyzeJsonParser(FeatureParser):
         input_relations = []
         # older pickled parsers predate the pages feature
         relpages = getattr(self, "relpages", None)
+        robust = getattr(self, "robust", False)
         empty_pages = 0.0 if relpages is not None else None
+        empty_robust = np.zeros(5) if robust else None
 
         if 'Plans' in json_rel:
             children = json_rel['Plans']
@@ -273,7 +342,7 @@ class AnalyzeJsonParser(FeatureParser):
             else:
                 right = SampleEntity(op_to_one_hot(UNKNOWN_OP_TYPE), 0, 0, 0, 0,
                                      None, None, 0, 0, [], self.encode_relation_names([]),
-                                     empty_pages)
+                                     empty_pages, empty_robust)
 
         node_type = op_to_one_hot(json_rel['Node Type'])
         # startup_cost = self.normalizer.norm(float(json_rel['Startup Cost']), 'Startup Cost')
@@ -296,11 +365,20 @@ class AnalyzeJsonParser(FeatureParser):
         pages = None
         if relpages is not None:
             pages = self.normalizer.norm(estimate_pages(json_rel, relpages), 'Est Pages')
+        robust_features = self.robust_features(json_rel, current_table_stats()) if robust else None
+
+        # targets: the node's own pages (excluding children) and its subtree total
+        self_label, total_label = None, None
+        total = actual_pages(json_rel)
+        if total is not None:
+            children_total = sum(actual_pages(c) or 0.0 for c in json_rel.get('Plans', []))
+            self_label = _log_scale(total - children_total, 10)
+            total_label = _log_scale(total, 10)
 
         return SampleEntity(node_type, startup_cost, total_cost, rows, width, left,
                             right, startup_time, total_time,
                             input_relations, self.encode_relation_names(input_relations),
-                            pages)
+                            pages, robust_features, self_label, total_label)
 
     def encode_relation_names(self, l):
         encode_arr = np.zeros(len(self.input_relations) + 1)

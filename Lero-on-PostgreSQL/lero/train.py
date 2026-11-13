@@ -71,7 +71,8 @@ def compute_rank_score(path, pretrain=False, rank_score_type=0):
     return X, Y
 
 
-def training_pairwise(tuning_model_path, model_name, training_data_file, pretrain=False, use_pages=False):
+def training_pairwise(tuning_model_path, model_name, training_data_file, pretrain=False, use_pages=False,
+                      robust=False, aux_pages_weight=0.0):
     X1, X2 = _load_pairwise_plans(training_data_file)
 
     tuning_model = tuning_model_path is not None
@@ -81,7 +82,7 @@ def training_pairwise(tuning_model_path, model_name, training_data_file, pretrai
         lero_model.load(tuning_model_path)
         feature_generator = lero_model._feature_generator
     else:
-        feature_generator = FeatureGenerator(use_pages)
+        feature_generator = FeatureGenerator(use_pages, robust)
         feature_generator.fit(X1 + X2)
 
     Y1, Y2 = None, None
@@ -98,7 +99,7 @@ def training_pairwise(tuning_model_path, model_name, training_data_file, pretrai
     if not tuning_model:
         assert lero_model == None
         lero_model = LeroModelPairWise(feature_generator)
-    lero_model.fit(X1, X2, Y1, Y2, tuning_model)
+    lero_model.fit(X1, X2, Y1, Y2, tuning_model, aux_pages_weight)
 
     print("saving model...")
     lero_model.save(model_name)
@@ -171,6 +172,10 @@ if __name__ == "__main__":
     parser.add_argument("--use_pages", action="store_true",
                         help="Add estimated pages read as a per-node feature (pairwise training)")
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--robust", action="store_true",
+                        help="Live table-stat features, no table one-hot (pairwise training)")
+    parser.add_argument("--aux_pages", type=float, default=0.0,
+                        help="Weight of the auxiliary loss predicting actual pages read (EXPLAIN BUFFERS)")
 
     args = parser.parse_args()
 
@@ -214,7 +219,7 @@ if __name__ == "__main__":
     elif training_type == 1:
         print("training_pairwise")
         training_pairwise(pretrain_model_name, model_name,
-                          training_data, False, args.use_pages)
+                          training_data, False, args.use_pages, args.robust, args.aux_pages)
     elif training_type == 2:
         print("training_with_rank_score")
         training_with_rank_score(

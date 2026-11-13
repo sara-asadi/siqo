@@ -1,0 +1,1 @@
+{"variant": "auxonly", "seed": 0, "pair_acc": 0.6883720930232559, "picked_s": 350.711906, "pg_s": 414.73475400000024, "oracle_s": 280.97975300000013, "geomean_vs_pg": 1.5317309609513836, "held_out_queries": 186, "pages_median_x_error": 3.222292731313237}

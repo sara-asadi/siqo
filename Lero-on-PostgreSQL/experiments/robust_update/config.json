@@ -1,0 +1,13 @@
+{
+  "pg_host": "localhost",
+  "pg_port": 5433,
+  "pg_db": "imdb",
+  "lero_port": 14567,
+  "model_path": "",
+  "job_test_queries": "/Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/lero/reproduce/test_query/job_excl_29.txt",
+  "job_train_queries": "/Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/lero/reproduce/training_query/job.txt",
+  "pool_num": 1,
+  "geqo": "off",
+  "git_commit": "417d0e1006c5758617b678abd39dab0a0ff0488e",
+  "extra": {"train_file": "/Users/hogwartz/Documents/Proposal/Lero-on-PostgreSQL/experiments/pages_ab/train_runs.log.training", "seeds": "0 1", "new_variants": "robust", "dbs": "imdb_upd"}
+}
